@@ -1,0 +1,58 @@
+version: "3"
+x-base: &default-base
+  restart: always
+  stop_grace_period: 1m
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "1"
+  mem_swappiness: 0
+  ulimits:
+    core: 0
+  environment: &default-base-param
+    TZ: Asia/Shanghai
+
+services:
+  nginx_with_lua:
+    build:
+      context: ./nginx-with-lua/docker
+    <<: *default-base
+    image: nginx_with_lua:1.25.3
+    ports:
+      - "80:80"
+      - "443:443"
+      - "5080:5080"
+    volumes:
+      #nginx配置文件
+      - ./nginx-with-lua:/etc/nginx
+      - ../src:/etc/nginx/lua-ngx-retry/
+
+  nginx:
+    <<: *default-base
+    image: nginx:1.25.3
+    ports:
+      - "1080:80"
+      - "1443:443"
+    volumes:
+      #nginx配置文件
+      - ./nginx:/etc/nginx
+
+  test-server:
+    <<: *default-base
+    build:
+      context: ./test-server/
+      dockerfile: docker/Dockerfile
+
+    image: test-server:v1.0
+    command: gunicorn app:app --chdir /src --worker-class gthread --log-level debug --bind 0.0.0.0:8080 --keep-alive 60
+    # command: -c "tail -F any"
+    # command: -c "cd /src && flask run -h 0.0.0.0 -p 8080"
+    # entrypoint:
+    #   - "/bin/sh"
+    ports:
+      - "8080:8080"
+    environment:
+      WEB_CONCURRENCY: "1"
+    volumes:
+      - ./test-server:/src

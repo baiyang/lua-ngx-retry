@@ -1,0 +1,4 @@
+pytest
+httpx
+h2
+pytest-asyncio
